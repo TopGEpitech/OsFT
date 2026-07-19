@@ -24,12 +24,21 @@ Store, same as you would on a phone.
 Then:
 
 1. Open the `.dmg` and drag **OSFT - Launcher** into your Applications folder.
-2. First launch: **right-click the app, then Open** (macOS is cautious with apps
-   it hasn't seen before; this only happens once).
+2. First launch, one time only: double-click the app. macOS blocks it, so open
+   **System Settings > Privacy & Security**, scroll to the message about
+   OSFT - Launcher, and click **Open Anyway**. This is the standard prompt for any
+   app not sold through the App Store; it is not a warning about this app in
+   particular.
 3. Open the app, hit **Install game engine** once (~3.5 GB), then sign into the
    Play Store and grab Teamfight Tactics.
 
 That's it. After the first setup it boots from a snapshot in a few seconds.
+
+Prefer the terminal? This one line does the same as step 2:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/OSFT - Launcher.app"
+```
 
 ## What you need
 
