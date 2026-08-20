@@ -1,0 +1,88 @@
+{
+  "doc": [
+    "La liste des jeux installables SANS Play Store (mode Léger), et la seule",
+    "chose à modifier pour en ajouter un : une ligne ici suffit, le robot",
+    "titles-refresh fait le reste et le launcher les découvre par latest.json.",
+    "Ni Swift à recompiler, ni DMG à re-notariser, ni client à mettre à jour.",
+    "",
+    "slug    : nom des assets publiés (<slug>-splits.zip, -version.txt, -cert.txt).",
+    "          NE JAMAIS le changer sur un titre déjà publié : c'est l'URL que",
+    "          les clients installés connaissent.",
+    "package : le paquet Android, seule clé dont le robot a besoin pour trouver",
+    "          la build courante (les deux sources résolvent par paquet).",
+    "cert    : empreinte SHA-256 du certificat signataire, épinglée. Le robot",
+    "          refuse de publier une archive signée par quelqu'un d'autre : c'est",
+    "          ce contrôle qui permet de ne pas surveiller le miroir. Laisser",
+    "          vide sur un titre neuf : la première exécution l'imprime et le",
+    "          publie dans <slug>-cert.txt, elle sert de référence ensuite.",
+    "region  : affiché tel quel dans la bibliothèque, sous le nom du jeu.",
+    "flag    : le drapeau montré dans les réglages et sur le bouton.",
+    "country : code pays ISO. Sert au DEFAUT : la region s'affiche d'office",
+    "          chez un joueur dont le Mac est dans ce pays, et nulle part ailleurs.",
+    "publish : false retire le titre du robot. Wild Rift global est dans ce cas :",
+    "          jamais essaye sur le produit, donc pas propose aux clients."
+  ],
+  "titles": [
+    {
+      "slug": "tft",
+      "package": "com.riotgames.league.teamfighttactics",
+      "name": "Teamfight Tactics",
+      "region": "Global",
+      "cert": "931d969502f3de01a4c239e4199211ebdc57bb9a7526394b9e3e2d1cc079ff0c",
+      "flag": "🌍"
+    },
+    {
+      "slug": "tft-pbe",
+      "package": "com.riotgames.league.teamfighttactics.pbe",
+      "name": "TFT PBE",
+      "region": "Serveur de test",
+      "cert": "39c6bd88af3930f48c0605ae2943777063a9483a709c2085d2bd58d2f95998bf",
+      "flag": "🧪"
+    },
+    {
+      "slug": "tft-vn",
+      "package": "com.riotgames.league.teamfighttacticsvn",
+      "name": "Đấu Trường Chân Lý",
+      "region": "Vietnam",
+      "cert": "931d969502f3de01a4c239e4199211ebdc57bb9a7526394b9e3e2d1cc079ff0c",
+      "flag": "🇻🇳",
+      "country": "VN"
+    },
+    {
+      "slug": "tft-tw",
+      "package": "com.riotgames.league.teamfighttacticstw",
+      "name": "聯盟戰棋",
+      "region": "Taïwan",
+      "cert": "931d969502f3de01a4c239e4199211ebdc57bb9a7526394b9e3e2d1cc079ff0c",
+      "flag": "🇹🇼",
+      "country": "TW"
+    },
+    {
+      "slug": "wr",
+      "package": "com.riotgames.league.wildrift",
+      "name": "LoL: Wild Rift",
+      "region": "Global",
+      "cert": "931d969502f3de01a4c239e4199211ebdc57bb9a7526394b9e3e2d1cc079ff0c",
+      "flag": "🌍",
+      "publish": false
+    },
+    {
+      "slug": "wr-vn",
+      "package": "com.riotgames.league.wildriftvn",
+      "name": "LMHT: Tốc Chiến",
+      "region": "Vietnam",
+      "cert": "931d969502f3de01a4c239e4199211ebdc57bb9a7526394b9e3e2d1cc079ff0c",
+      "flag": "🇻🇳",
+      "country": "VN"
+    },
+    {
+      "slug": "wr-tw",
+      "package": "com.riotgames.league.wildrifttw",
+      "name": "英雄聯盟：激鬥峽谷",
+      "region": "Taïwan",
+      "cert": "931d969502f3de01a4c239e4199211ebdc57bb9a7526394b9e3e2d1cc079ff0c",
+      "flag": "🇹🇼",
+      "country": "TW"
+    }
+  ]
+}

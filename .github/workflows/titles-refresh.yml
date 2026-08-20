@@ -1,0 +1,279 @@
+# Tient à jour, tout seul, les archives installables de TOUS les titres de
+# `Scripts/titles.json` (TFT et Wild Rift, toutes régions) derrière des URL
+# qui, elles, ne changent JAMAIS.
+#
+# POURQUOI IL VIT DANS CE DÉPÔT-CI (déplacé de os-fight-tactics le 20/08/2026) :
+# les minutes Actions sont gratuites et illimitées sur un dépôt public, alors
+# que sur le dépôt privé chaque exécution était facturée 1 minute pleine
+# (GitHub arrondit à la minute entamée, par job). À 48 exécutions par jour, le
+# robot consommait ~1 440 des 2 000 minutes mensuelles du plan, et le quota a
+# atteint 90 % le 20/08/2026 : à zéro, plus AUCUN workflow privé n'obtient de
+# runner et le robot serait mort en silence, en pleine fenêtre de patch PBE.
+# Ce dépôt est aussi celui qui héberge les releases : le jeton par défaut du
+# workflow suffit à tout (assets ET alertes), il n'y a PLUS AUCUN secret à
+# configurer. L'ancienne panne « secret manquant » (payée le 11/08/2026, le
+# robot téléchargeait 900 Mo pour rien toutes les 30 minutes) ne peut plus
+# exister ici.
+#
+# CE DÉPÔT EST PUBLIC : ce fichier, les scripts de `Scripts/` et les logs de
+# chaque exécution sont lisibles par n'importe qui. Ils montrent des versions,
+# des slugs, des tailles et des empreintes de certificats Riot, rien de secret.
+# Ne JAMAIS y faire transiter un jeton ou une URL privée en clair.
+#
+# PIÈGE DES DÉPÔTS CALMES : GitHub désactive les crons d'un dépôt sans commit
+# depuis 60 jours, et les publications du robot sont des ASSETS, pas des
+# commits, donc ce dépôt est calme par construction. L'étape « battement »
+# pousse un commit vide avant J-60 pour remettre le compteur à zéro ; sans
+# elle, le robot mourrait en silence deux mois après le dernier commit.
+#
+# LA PROPRIÉTÉ QUI COMPTE : une panne dégrade en VERSION FIGÉE, jamais en
+# installation cassée. Les assets ne sont jamais supprimés ; un titre qui échoue
+# laisse en ligne l'archive précédente, que les clients continuent d'installer.
+# Un titre en échec n'empêche pas les autres de se publier, et l'échec ouvre un
+# ticket au lieu de dormir dans un journal.
+#
+# Coût : la surveillance est rapprochée parce qu'elle est bon marché. Connaître
+# la version disponible coûte ~100 Ko par titre, l'archive en coûte 100 à 200 Mo.
+# On compare d'abord. L'écrasante majorité des exécutions ne fait que ça.
+#
+# Honnêteté sur la latence : GitHub ne garantit pas l'heure d'un cron et le
+# retarde sous charge, en particulier aux heures rondes (d'où les minutes
+# décalées). « Dès que Riot publie » n'existe pas : il n'y a de webhook ni chez
+# Riot ni chez les miroirs, donc le plancher est la latence de sondage. Pour
+# publier tout de suite, lancer le workflow à la main (workflow_dispatch).
+
+name: Rafraîchir les archives des jeux
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "Ne traiter que ce slug (vide = tous)"
+        required: false
+        default: ""
+      force:
+        description: "Republier même si la version n'a pas bougé"
+        type: boolean
+        default: false
+
+# `contents: write` couvre l'envoi des assets de release ET le commit de
+# battement ; `issues: write` couvre l'alerte. Tout passe par le jeton par
+# défaut : aucune de ces deux voies ne peut échouer « faute de secret ».
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  # Deux exécutions qui publieraient les mêmes assets en même temps
+  # n'apporteraient rien et pourraient se marcher dessus.
+  group: titles-refresh
+  cancel-in-progress: false
+
+env:
+  # Littéral, PAS ${{ github.repository }} : la casse canonique du dépôt est
+  # « OsFT » et ces URL sont recopiées telles quelles dans le catalogue de
+  # latest.json que lisent les clients installés. On garde l'orthographe que
+  # tous les clients connaissent déjà.
+  RELEASE_REPO: TopGEpitech/osft
+  RELEASE_TAG: v0.3.0
+
+jobs:
+  refresh:
+    # ubuntu par cohérence avec les scripts (python3, curl, unzip, zip existent
+    # partout). Sur un dépôt public les minutes sont gratuites quel que soit le
+    # runner, mais rien ici n'a besoin de macOS.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Battement (le cron meurt à 60 jours sans commit)
+        run: |
+          last=$(git log -1 --format=%ct)
+          age_jours=$(( ( $(date +%s) - last ) / 86400 ))
+          echo "dernier commit : il y a $age_jours jour(s)"
+          if [ "$age_jours" -ge 45 ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Battement : garde le cron actif (GitHub le coupe à 60 jours sans commit)"
+            # HEAD est détaché sur un checkout d'événement schedule, d'où la
+            # forme explicite. Un push du jeton par défaut ne déclenche aucun
+            # workflow : pas de boucle possible.
+            git push origin HEAD:main
+          fi
+
+      - name: Rafraîchir chaque titre
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ONLY: ${{ inputs.slug }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -u
+          base="https://github.com/$RELEASE_REPO/releases/download/$RELEASE_TAG"
+          failed=""
+          published=""
+
+          # `publish: false` retire un titre du robot. Sans ce filtre, un titre
+          # qu'on a décidé de NE PAS publier n'a jamais de version en ligne,
+          # donc la comparaison le déclare éternellement périmé : il se
+          # retéléchargerait en entier à chaque exécution (717 Mo pour Wild Rift
+          # global, 48 fois par jour) pour être jeté à chaque fois.
+          slugs=$(python3 -c 'import json;print(" ".join(t["slug"] for t in json.load(open("Scripts/titles.json"))["titles"] if t.get("publish", True)))')
+          for slug in $slugs; do
+            [ -z "$ONLY" ] || [ "$ONLY" = "$slug" ] || continue
+
+            pkg=$(python3 -c 'import json,sys;print(next(t["package"] for t in json.load(open("Scripts/titles.json"))["titles"] if t["slug"]==sys.argv[1]))' "$slug")
+            pin=$(python3 -c 'import json,sys;print(next(t.get("cert","") for t in json.load(open("Scripts/titles.json"))["titles"] if t["slug"]==sys.argv[1]))' "$slug")
+
+            echo "::group::$slug ($pkg)"
+
+            # ÉTAPE BON MARCHÉ : une requête de métadonnées, aucun octet d'archive.
+            # Le paramètre casse le cache d'une heure de GitHub, comme le fait l'app.
+            have=$(curl -sfL --max-time 30 "$base/$slug-version.txt?t=$(date +%s)" | tr -d '[:space:]') || have=""
+            want=$(python3 Scripts/title_source.py "$pkg" | cut -f2) || want=""
+            echo "publiée: ${have:-aucune} / disponible: ${want:-illisible}"
+
+            if [ -z "$want" ]; then
+              echo "::warning::$slug : aucune source ne répond, la version publiée reste en ligne."
+              failed="$failed $slug(source)"
+              echo "::endgroup::"; continue
+            fi
+            if [ "$want" = "$have" ] && [ "$FORCE" != "true" ]; then
+              echo "::endgroup::"; continue
+            fi
+
+            # Épingle : celle du fichier si elle y est, sinon celle déjà publiée
+            # (une première exécution l'a établie). Un titre neuf n'en a aucune
+            # et la sienne devient la référence.
+            if [ -z "$pin" ]; then
+              pin=$(curl -sfL --max-time 30 "$base/$slug-cert.txt?t=$(date +%s)" | tr -d '[:space:]') || pin=""
+            fi
+
+            # ÉTAPE COÛTEUSE : seulement quand la version a bougé.
+            if ! ./Scripts/title-refresh.sh "$pkg" "$slug" dist/titles "$pin"; then
+              echo "::error::$slug : archive refusée (signature, taille ou contenu). Rien n'a été publié."
+              failed="$failed $slug(archive)"
+              echo "::endgroup::"; continue
+            fi
+
+            got=$(tr -d '[:space:]' < "dist/titles/$slug-version.txt")
+            if [ "$got" != "$want" ]; then
+              echo "::error::$slug : téléchargé $got, attendu $want."
+              failed="$failed $slug(version)"
+              echo "::endgroup::"; continue
+            fi
+
+            # L'asset garde son nom, donc l'URL que connaissent tous les clients
+            # installés reste valable. `--clobber` remplace en place, sans créer
+            # de tag ni toucher au DMG.
+            if gh release upload "$RELEASE_TAG" \
+                 "dist/titles/$slug-splits.zip" \
+                 "dist/titles/$slug-version.txt" \
+                 "dist/titles/$slug-cert.txt" \
+                 --clobber -R "$RELEASE_REPO"; then
+              echo "::notice::$slug publié en $want"
+              published="$published $slug"
+            else
+              echo "::error::$slug : envoi de l'asset refusé."
+              failed="$failed $slug(upload)"
+            fi
+            rm -f dist/titles/$slug-*
+            echo "::endgroup::"
+          done
+
+          echo "published=${published# }" >> "$GITHUB_OUTPUT"
+          echo "failed=${failed# }" >> "$GITHUB_OUTPUT"
+
+      # Le catalogue que lit le launcher. On MET À JOUR latest.json, on ne le
+      # réécrit pas : ce fichier porte aussi `build`, `pbeArchive` et les
+      # annonces, et un générateur qui ne connaît que ses propres champs les
+      # effacerait en silence. On relit donc ce qui est servi et on n'y touche
+      # que `titles`.
+      - name: Mettre à jour le catalogue de latest.json
+        if: steps.run.outputs.published != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          base="https://github.com/$RELEASE_REPO/releases/download/$RELEASE_TAG"
+          curl -sfL "$base/latest.json?t=$(date +%s)" -o latest.json
+          python3 - "$base" <<'PY'
+          import json, sys, urllib.request
+
+          base = sys.argv[1]
+          served = json.load(open("latest.json"))
+          catalogue = json.load(open("Scripts/titles.json"))["titles"]
+
+          entries = []
+          for title in catalogue:
+              slug = title["slug"]
+              # Un titre n'entre au catalogue QUE si son archive est réellement
+              # en ligne : sinon le launcher afficherait une carte qui ne peut
+              # pas s'installer, ce qui est pire que pas de carte du tout.
+              try:
+                  with urllib.request.urlopen(f"{base}/{slug}-version.txt", timeout=30) as answer:
+                      version = answer.read().decode().strip()
+              except Exception:
+                  continue
+              entries.append({
+                  "package": title["package"],
+                  "name": title["name"],
+                  "region": title["region"],
+                  "flag": title.get("flag", ""),
+                  "version": version,
+                  "archive": f"{base}/{slug}-splits.zip",
+              })
+
+          if not entries:
+              raise SystemExit("aucun titre en ligne : on ne touche pas au catalogue.")
+
+          served["titles"] = entries
+          json.dump(served, open("latest.json", "w"), ensure_ascii=False)
+          print(f"{len(entries)} titres au catalogue")
+          # Garde-fou, la règle du produit : ce champ est la source d'installation
+          # du PBE pour les clients déjà installés. S'il disparaît, plus personne
+          # ne peut installer, sans le moindre message.
+          assert "pbeArchive" in served, "pbeArchive perdu, on ne publie pas"
+          assert "build" in served, "build perdu, on ne publie pas"
+          PY
+          gh release upload "$RELEASE_TAG" latest.json --clobber -R "$RELEASE_REPO"
+
+      # Un échec doit ARRIVER À QUELQU'UN. Sans ça, un titre en panne reste figé
+      # des semaines et on l'apprend par un client. L'issue s'ouvre ICI, avec le
+      # jeton par défaut : l'alerte ne peut pas échouer « faute de secret »
+      # (l'ancien montage a raté son alerte exactement le jour où il fallait
+      # prévenir, parce qu'elle dépendait du jeton qui venait d'échouer). Ce
+      # dépôt étant public, l'issue est visible des clients : le corps dit
+      # explicitement que personne n'est bloqué.
+      - name: Signaler les titres en panne
+        if: always() && steps.run.outputs.failed != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          titre="Robot des archives : ${{ steps.run.outputs.failed }}"
+          # Le label n'existe pas dans un dépôt neuf, et `gh issue create` REFUSE
+          # de créer le ticket quand il manque (« could not add label: 'robot'
+          # not found », mesuré). L'alerte tombait donc pour une raison
+          # décorative, dans le cas précis où elle devait parler. On le crée
+          # d'abord, sans échouer s'il est déjà là.
+          gh label create robot --color BFD4F2 \
+            --description "Robot des archives" >/dev/null 2>&1 || true
+          existant=$(gh issue list --state open --label robot --search "in:title archives" \
+                       --json number --jq '.[0].number' 2>/dev/null || true)
+          corps="Titres en échec : ${{ steps.run.outputs.failed }}
+          Exécution : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Les archives déjà publiées restent en ligne : les clients installent la version précédente, personne n'est bloqué."
+          if [ -n "$existant" ]; then
+            gh issue comment "$existant" --body "$corps"
+          else
+            gh issue create --title "$titre" --label robot --body "$corps"
+          fi
+
+      - name: Refléter l'échec dans le statut du job
+        if: steps.run.outputs.failed != ''
+        run: |
+          echo "En échec : ${{ steps.run.outputs.failed }}"
+          exit 1
