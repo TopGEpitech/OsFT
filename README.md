@@ -3,7 +3,7 @@
 **Your games on your Mac, full screen, on your keyboard, at 60 Hz.**
 A native launcher for Apple Silicon (M1, M2, M3, M4 and newer) that runs a real Android device locally, optimized for Unreal Engine games: no Windows, no Boot Camp, no virtual machine, no streaming.
 
-[**⬇︎ Download the launcher (.dmg)**](https://github.com/TopGEpitech/OsFT/releases/latest/download/OSFT-Launcher.dmg) · [Website](https://macosemulator.com/en) · [Support](https://macosemulator.com/en/compte)
+[**⬇︎ Download the launcher (.dmg)**](https://github.com/TopGEpitech/macosemulator/releases/latest/download/MACOS-EMULATOR.dmg) · [Website](https://macosemulator.com/en) · [Support](https://macosemulator.com/en/compte)
 
 ## How it works
 
@@ -13,7 +13,7 @@ You sign into **your** Google account and install your games from the real Googl
 
 ## Download and install
 
-1. [Download the latest `.dmg`](https://github.com/TopGEpitech/OsFT/releases/latest/download/OSFT-Launcher.dmg), open it and drag **MACOS EMULATOR** into your Applications folder.
+1. [Download the latest `.dmg`](https://github.com/TopGEpitech/macosemulator/releases/latest/download/MACOS-EMULATOR.dmg), open it and drag **MACOS EMULATOR** into your Applications folder.
 2. First launch, one time only: double-click the app. If macOS blocks it, open **System Settings > Privacy & Security**, scroll to the message about the app, and click **Open Anyway**. This is the standard prompt for any app not sold through the App Store, not a warning about this app in particular.
 3. Open the app, hit **Install game engine** once (about 3.5 GB), then sign into the Play Store and install your game.
 
@@ -25,7 +25,7 @@ Prefer the terminal? This one line does the same as step 2 (the app keeps its or
 xattr -dr com.apple.quarantine "/Applications/OSFT - Launcher.app"
 ```
 
-All releases: [github.com/TopGEpitech/OsFT/releases](https://github.com/TopGEpitech/OsFT/releases).
+All releases: [github.com/TopGEpitech/macosemulator/releases](https://github.com/TopGEpitech/macosemulator/releases).
 
 ## What you get
 
@@ -63,7 +63,7 @@ No. MACOS EMULATOR is an independent project, not affiliated with any game publi
 
 ## Something broke?
 
-Fastest: the support chat in your [customer area](https://macosemulator.com/en/compte) with the **Send a report** button (performance report and launcher logs, two clicks). Or open an [issue](https://github.com/TopGEpitech/OsFT/issues) with your Mac model, macOS version, and what you were doing.
+Fastest: the support chat in your [customer area](https://macosemulator.com/en/compte) with the **Send a report** button (performance report and launcher logs, two clicks). Or open an [issue](https://github.com/TopGEpitech/macosemulator/issues) with your Mac model, macOS version, and what you were doing.
 
 ## In other languages
 
