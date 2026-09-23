@@ -14,16 +14,10 @@ You sign into **your** Google account and install your games from the real Googl
 ## Download and install
 
 1. [Download the latest `.dmg`](https://github.com/TopGEpitech/macosemulator/releases/latest/download/MACOS-EMULATOR.dmg), open it and drag **MACOS EMULATOR** into your Applications folder.
-2. First launch, one time only: double-click the app. If macOS blocks it, open **System Settings > Privacy & Security**, scroll to the message about the app, and click **Open Anyway**. This is the standard prompt for any app not sold through the App Store, not a warning about this app in particular.
+2. Double-click the app: it is signed with a Developer ID certificate and notarized by Apple, so it opens straight away.
 3. Open the app, hit **Install game engine** once (about 3.5 GB), then sign into the Play Store and install your game.
 
 That's it. After the first setup it boots from a snapshot in a few seconds.
-
-Prefer the terminal? This one line does the same as step 2 (the app keeps its original file name on disk):
-
-```sh
-xattr -dr com.apple.quarantine "/Applications/OSFT - Launcher.app"
-```
 
 All releases: [github.com/TopGEpitech/macosemulator/releases](https://github.com/TopGEpitech/macosemulator/releases).
 
